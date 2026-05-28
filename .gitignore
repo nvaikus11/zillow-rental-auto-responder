@@ -1,0 +1,23 @@
+# Runtime data — contains PII, never commit
+data/interactions.jsonl
+data/applicants.json
+data/config.json
+
+# Local Claude Code settings (machine-specific)
+.claude/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor junk
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python (in case anyone scripts on top of this later)
+__pycache__/
+*.pyc
+.venv/
+venv/
