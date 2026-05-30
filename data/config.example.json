@@ -1,4 +1,6 @@
 {
-  "landlord_name": "Your first name (appears as signature in auto-replies)",
-  "summary_email_to": "you@example.com"
+  "landlord_name": "Your first name (signature in auto-replies)",
+  "from_address": "you@gmail.com (the inbox that receives Zillow notifications)",
+  "summary_email_to": "you@example.com (where the EOD digest is sent — can be same as from_address)",
+  "gmail_app_password": "16-char Gmail App Password — generate at https://myaccount.google.com/apppasswords (requires 2FA)"
 }

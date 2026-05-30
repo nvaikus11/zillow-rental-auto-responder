@@ -19,11 +19,12 @@ Read `{{PROJECT_ROOT}}/data/interactions.jsonl`. Filter to entries where `ts` fa
 
 ### Step 2 — Bucket the entries
 
-Three buckets:
+Four buckets, in this priority order:
 
-- **🔔 Needs your action** — entries where `needs_my_action == true` (applied renters asking for tours or substantive info). The most important section — put it first.
-- **📨 Pushed to apply** — entries with `template == "A"` (renters who hadn't applied; we asked them to apply first).
-- **✅ Acknowledged** — entries with `template == "C"` (applied renters with general questions; we promised a follow-up within 24h).
+- **❌ Send failures** — entries where `sent == false`. **Most important — surface first.** These need the user's immediate attention because the renter got nothing and the agent will retry on the next run.
+- **🔔 Needs your action** — entries where `sent == true` AND `needs_my_action == true` (applied renters asking for tours or substantive info we promised to follow up on within 24h).
+- **📨 Pushed to apply** — entries where `sent == true` AND `template == "A"` (renters who hadn't applied; we asked them to apply first).
+- **✅ Acknowledged** — entries where `sent == true` AND `template == "C"` (applied renters with general questions; we promised a follow-up within 24h).
 
 ### Step 3 — Draft the email
 
@@ -38,7 +39,15 @@ Use `create_draft`:
 ```
 Zillow Auto-Responder — daily digest for <today's date>
 
-<N> drafts created. All drafts are saved in your Gmail Drafts folder under the "Zillow/Auto-Drafted" label, ready for you to review and send.
+<N_sent> replies sent today. <N_failed> failed. All sent replies are in your Gmail Sent folder; threads are labeled "Zillow/Auto-Replied".
+
+────────────────────────────────────
+❌ SEND FAILURES (<count>) — ACTION REQUIRED
+────────────────────────────────────
+<For each entry in the "failures" bucket — only render this section if count > 0:>
+• <Renter name> — <Property>
+  Error: <send_error>
+  → Agent will retry on next 3h run. If the error persists (e.g. "auth failed"), check gmail_app_password in data/config.json.
 
 ────────────────────────────────────
 🔔 NEEDS YOUR ACTION (<count>)
@@ -47,7 +56,7 @@ Zillow Auto-Responder — daily digest for <today's date>
 • <Renter name> — <Property>
   Asked: <message_snippet, trimmed to ~120 chars>
   Classification: <classification>
-  → Drafted Template <B|C>. Schedule or respond when you can.
+  → Sent Template <B|C>. Schedule or respond personally within 24h as promised.
 
 ────────────────────────────────────
 📨 PUSHED TO APPLY (<count>)
@@ -63,9 +72,9 @@ Zillow Auto-Responder — daily digest for <today's date>
 
 ────────────────────────────────────
 
-If any of these look off, edit or delete the drafts before sending.
+Full reply bodies are logged in data/interactions.jsonl for audit.
 
-— Zillow Auto-Responder (review the prompt at {{PROJECT_ROOT}}/prompts/)
+— Zillow Auto-Responder (prompt: {{PROJECT_ROOT}}/prompts/)
 ```
 
 Render with real counts and entries. Drop a section entirely (don't print empty headers) if the bucket is empty, EXCEPT keep the "needs action" section even when empty so the absence is visible — write "None today. ✨"

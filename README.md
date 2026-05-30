@@ -20,15 +20,23 @@ Two scheduled tasks do the work:
    - Reads today's log
    - Drafts a summary email to `your landlord inbox (configured via `data/config.json`)` listing every reply drafted and which tour requests need your action
 
-## ⚠️ Drafts, not auto-sends
+## Auto-send via Gmail SMTP
 
-The Gmail MCP can only **create drafts**, not send. Workflow:
-1. Agent drafts a reply in Gmail
-2. Thread gets labeled `Zillow/Auto-Drafted`
-3. You review and hit Send in Gmail (one click each)
-4. EOD email reminds you of pending drafts
+Replies are sent automatically by `scripts/send_reply.py` using Gmail SMTP with an [App Password](https://myaccount.google.com/apppasswords). Workflow:
 
-If you want true auto-send later, we'd layer Zapier's "Send Gmail" on top.
+1. Agent identifies a new Zillow message it hasn't replied to
+2. Renders the appropriate template (apply-first / tour-ack / general-ack)
+3. Sends the reply via `send_reply.py` with proper threading headers
+4. Labels the thread `Zillow/Auto-Replied` on successful send
+5. Logs the full sent body to `data/interactions.jsonl` for audit
+6. If the send fails, agent does NOT label — it retries on the next 3h run
+
+**Dedup is rock-solid via three layers:**
+- Gmail search filter excludes any thread carrying `Zillow/Auto-Replied` or `Zillow/Auto-Drafted` (legacy)
+- Defensive label re-check before each send
+- Pre-send scan of `interactions.jsonl` for any prior `"sent": true` entry on the same `thread_id`
+
+No thread is ever replied to twice.
 
 ## Reply templates
 
@@ -42,7 +50,8 @@ Every reply ends with this disclaimer:
 
 ## Gmail labels created
 
-- `Zillow/Auto-Drafted` — agent has drafted a reply
+- `Zillow/Auto-Replied` — the lock label; agent has sent a reply on this thread
+- `Zillow/Auto-Drafted` — legacy from the original draft-mode setup; kept as a secondary dedup lock
 - `Zillow/Awaiting-Application` — renter hasn't applied yet
 - `Zillow/Tour-Pending` — tour request needs your scheduling
 
@@ -52,9 +61,10 @@ Every reply ends with this disclaimer:
 |---|---|---|
 | `prompts/process_inbox.md` | Per-run agent prompt | ✅ |
 | `prompts/eod_summary.md` | EOD digest prompt | ✅ |
+| `scripts/send_reply.py` | SMTP helper invoked by the agent to send replies | ✅ |
 | `data/config.example.json` | Template — copy to `data/config.json` and fill in | ✅ |
-| `data/config.json` | Your real `landlord_name` + `summary_email_to` | ❌ gitignored |
-| `data/interactions.jsonl` | Append-only log of every reply drafted | ❌ gitignored (PII) |
+| `data/config.json` | Your `landlord_name`, `from_address`, `summary_email_to`, and **Gmail App Password** | ❌ gitignored (secret) |
+| `data/interactions.jsonl` | Append-only log of every reply sent (full body for audit) | ❌ gitignored (PII) |
 | `data/applicants.json` | Cache of renter → applied? → property | ❌ gitignored (PII) |
 
 ## Setup (cloning fresh)
@@ -66,7 +76,9 @@ cd zillow-rental-auto-responder
 
 # 2. Fill in your config
 cp data/config.example.json data/config.json
-$EDITOR data/config.json   # set landlord_name and summary_email_to
+$EDITOR data/config.json   # set landlord_name, from_address, summary_email_to,
+                           # AND gmail_app_password (16-char App Password from
+                           # https://myaccount.google.com/apppasswords — requires 2FA)
 
 # 3. Create the runtime data files
 echo '{}' > data/applicants.json
